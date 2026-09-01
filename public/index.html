@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>冰箱贴大王 · 公众号自动化生产工具</title>
+<style>
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --brand: #6D5CEC;
+    --brand-strong: #5A4BD6;
+    --brand-soft: #F0ECFF;
+    --accent: #00B894;
+    --warn: #EFA94B;
+    --danger: #E74C3C;
+    --bg: #F5F6FA;
+    --card: #FFFFFF;
+    --border: #E4E6EE;
+    --text: #1A1D29;
+    --text-muted: #6B7180;
+    --text-subtle: #9CA0B0;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 14px; line-height: 1.6; }
+  header { background: linear-gradient(135deg, var(--brand) 0%, #8B7EFF 100%); color: #fff; padding: 20px 28px 16px; display:flex; align-items:center; justify-content:space-between; box-shadow: 0 2px 10px rgba(109,92,236,0.2); }
+  header h1 { margin: 0; font-size: 20px; display:flex; align-items:center; gap:10px; }
+  header h1 .logo { background: rgba(255,255,255,0.25); width: 34px; height: 34px; border-radius: 8px; display:inline-flex; align-items:center; justify-content:center; font-size: 18px; }
+  .status-pill { display:flex; gap:8px; align-items:center; font-size: 12px; flex-wrap: wrap; }
+  .pill { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 999px; backdrop-filter: blur(4px); }
+  .pill.ok { background: rgba(0,184,148,0.5); }
+  .pill.warn { background: rgba(239,169,75,0.7); }
+  .pill.bad { background: rgba(231,76,60,0.65); }
+
+  main { max-width: 1280px; margin: 24px auto; padding: 0 20px; }
+  .tabs { display:flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; gap: 4px; flex-wrap: wrap; }
+  .tab { padding: 12px 20px; cursor: pointer; border: 0; background: transparent; font-size: 14px; color: var(--text-muted); border-bottom: 2px solid transparent; transition: all 0.2s; font-weight: 500; font-family: inherit; border-radius: 6px 6px 0 0; }
+  .tab:hover { color: var(--text); background: var(--card); }
+  .tab.active { color: var(--brand); border-bottom-color: var(--brand); background: var(--card); font-weight: 600; }
+  .tab .step { display:inline-block; width:20px; height:20px; border-radius:50%; background: var(--border); color: var(--text-muted); font-size: 11px; margin-right:8px; line-height:20px; text-align:center; }
+  .tab.active .step { background: var(--brand); color: #fff; }
+
+  .tab-panel { display: none; animation: fade 0.2s ease-in; }
+  .tab-panel.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+  .card h2 { margin: 0 0 14px; font-size: 16px; display:flex; align-items:center; gap: 8px; }
+  .card h2 .bar { width: 4px; height: 18px; background: var(--brand); border-radius: 2px; }
+  .card .sub { color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
+
+  .stat-row { display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align:center; }
+  .stat .num { font-size: 22px; font-weight: 700; color: var(--brand); }
+  .stat .label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  button.btn { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; font-family: inherit; font-size: 13px; transition: all 0.15s; display:inline-flex; align-items:center; gap: 6px; }
+  button.btn:hover { border-color: var(--brand); color: var(--brand); }
+  button.btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  button.btn.primary:hover { background: var(--brand-strong); color: #fff; }
+  button.btn.success { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.btn.success:hover { filter: brightness(0.95); color: #fff; }
+  button.btn.danger { background: #fff; color: var(--danger); border-color: var(--danger); }
+  button.btn.danger:hover { background: var(--danger); color: #fff; }
+  button.btn.sm { padding: 4px 10px; font-size: 12px; }
+  button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  input[type="text"], textarea, select {
+    width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);
+    font-size: 13px; font-family: inherit; color: var(--text); background: #fff; outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(109,92,236,0.12); }
+  textarea { resize: vertical; font-family: inherit; }
+  label { display:block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+  .field { margin-bottom: 12px; }
+  .field-row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table th, table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  table th { background: var(--brand-soft); color: var(--brand-strong); font-weight: 600; font-size: 12px; }
+  table tr:hover td { background: #FAFAFF; }
+
+  .tag { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+  .tag.strong { background: #E5F7F2; color: #009B7D; }
+  .tag.medium { background: #EAF3FF; color: #1E66D6; }
+  .tag.weak { background: #FFF6E5; color: #B8860B; }
+  .tag.none { background: #F1F2F5; color: var(--text-muted); }
+  .tag.api { background: #E5F7F2; color: #009B7D; }
+  .tag.fallback { background: #FFF6E5; color: #B8860B; }
+  .tag.pending { background: #FFF0F0; color: var(--danger); }
+  .tag.done { background: #E5F7F2; color: #009B7D; }
+
+  .alert { padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px; font-size: 13px; line-height: 1.6; }
+  .alert.warn { background: #FFF8E8; color: #8A6400; border: 1px solid #F0D78A; }
+  .alert.info { background: #EEF1FF; color: var(--brand-strong); border: 1px solid #CFC5FF; }
+  .alert.ok { background: #E5F7F2; color: #007A66; border: 1px solid #89D8C2; }
+  .alert.err { background: #FFF0F0; color: #A02828; border: 1px solid #F2BFBF; }
+
+  .html-preview { background:#fff; padding:20px; border:1px solid var(--border); border-radius: var(--radius); max-height: 70vh; overflow:auto; }
+  .loading { display:inline-block; width:14px; height:14px; border:2px solid currentColor; border-top-color: transparent; border-radius:50%; animation: spin 0.8s linear infinite; vertical-align: -3px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .steps { display:flex; gap: 8px; margin: 16px 0; }
+  .step-item { flex:1; padding: 12px; border-radius: var(--radius); background: #F8F9FD; border: 1px dashed var(--border); text-align: center; font-size: 12px; position: relative; transition: all 0.2s; }
+  .step-item.done { background: #E5F7F2; border-color: #89D8C2; color: #007A66; border-style: solid; }
+  .step-item.active { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-strong); border-style: solid; font-weight: 600; }
+  .step-item .idx { font-weight: 700; font-size: 16px; margin-bottom: 4px; display: block; }
+
+  .modal-bg { position: fixed; inset: 0; background: rgba(26,29,41,0.55); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-bg.show { display: flex; }
+  .modal { background: #fff; border-radius: var(--radius-lg); width: min(880px, 92vw); max-height: 90vh; overflow: auto; padding: 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .modal-head h3 { margin: 0; font-size: 16px; }
+  .close-btn { background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--text-muted); padding: 0 8px; }
+  .close-btn:hover { color: var(--danger); }
+
+  .toast { position: fixed; top: 24px; right: 24px; background: var(--text); color: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); z-index: 200; animation: toastin 0.25s ease; }
+  .toast.err { background: var(--danger); }
+  .toast.ok { background: var(--accent); }
+  @keyframes toastin { from { transform: translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .kbd { background: #fff; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); font-size: 11px; font-family: monospace; color: var(--text-muted); }
+
+  .empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+  .empty .big { font-size: 32px; margin-bottom: 8px; }
+
+  /* 热点行 */
+  .hotspot-row { display: grid; grid-template-columns: 40px 1fr 120px 140px; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  .hotspot-row:hover { background: #FAFAFF; }
+  .hotspot-row .title { font-weight: 500; cursor: pointer; }
+  .hotspot-row .title:hover { color: var(--brand); }
+  .hotspot-row .rank { font-weight: 700; color: var(--text-muted); text-align:center; }
+  .hotspot-row .src { font-size: 12px; color: var(--text-subtle); }
+
+  .hotspot-list { max-height: 68vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  .hotspot-list .header-row { background: var(--brand-soft); font-weight: 600; color: var(--brand-strong); font-size: 12px; position: sticky; top: 0; z-index: 1; }
+
+  @media (max-width: 768px) {
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .field-row { grid-template-columns: 1fr; }
+    .hotspot-row { grid-template-columns: 30px 1fr 90px; }
+    .hotspot-row .src { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="logo">🧲</span>冰箱贴大王 · 公众号自动化生产工作台</h1>
+  <div class="status-pill" id="statusPill">
+    <span class="pill"><span class="loading"></span> 正在自检…</span>
+  </div>
+</header>
+
+<main>
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-tab="init"><span class="step">1</span>初始化</button>
+    <button class="tab" data-tab="hotspots"><span class="step">2</span>热点搜集</button>
+    <button class="tab" data-tab="generate"><span class="step">3</span>生成/编辑</button>
+    <button class="tab" data-tab="drafts"><span class="step">4</span>草稿与发布</button>
+    <button class="tab" data-tab="notify"><span class="step">5</span>通知记录</button>
+  </div>
+
+  <!-- ========== Tab 1: 初始化 ========== -->
+  <div class="tab-panel active" data-panel="init">
+    <div class="stat-row" id="statRow"></div>
+
+    <div class="grid-2">
+      <!-- 配置自检 -->
+      <div class="card">
+        <h2><span class="bar"></span>配置自检</h2>
+        <div class="sub">工具启动时自动检测；环境变化可手动刷新</div>
+        <button class="btn primary" onclick="loadStatus()"><span id="sLoad">🔄 刷新状态</span></button>
+        <div id="statusBox" style="margin-top:16px;"></div>
+      </div>
+
+      <!-- IP白名单提示 -->
+      <div class="card">
+        <h2><span class="bar"></span>微信 IP 白名单（必读）</h2>
+        <div class="sub">微信公众号 API 强制要求把本机出口 IP 加入白名单</div>
+        <div class="alert warn">
+          请登录 <a href="https://mp.weixin.qq.com" target="_blank" style="color:inherit;">mp.weixin.qq.com</a> →
+          <b>设置与开发 → 基本配置 → IP白名单</b>，把下面的 IP 加进去保存。<br>
+          回家后 IP 会变，记得重新执行一次这个页面再看。
+        </div>
+        <div class="field">
+          <label>当前本机出口IP</label>
+          <input type="text" id="exitIp" value="检测中…" readonly onclick="this.select();document.execCommand('copy');toast('已复制到剪贴板','ok')"/>
+          <div style="margin-top:6px; font-size:12px; color:var(--text-muted);">点击即可复制</div>
+        </div>
+        <div class="alert info" id="wechatTestBox"></div>
+        <button class="btn" onclick="testWechatPermission()">🔬 快速测试 draft/add 权限</button>
+      </div>
+
+      <!-- 历史文章导入 -->
+      <div class="card" style="grid-column: 1 / -1;">
+        <h2><span class="bar"></span>历史文章导入 · 风格学习</h2>
+        <div class="sub">您是个人未认证订阅号，无法通过 API 拉取。请从公众号后台手动把每篇文章HTML复制到此处导入。<br>
+        方法：后台「发表记录」→ 打开文章 → 浏览器查看源码（Ctrl+U）或右键「另存为」HTML，把完整HTML粘贴到下面。
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>标题（可选，默认从HTML提取）</label>
+            <input type="text" id="artTitle" placeholder="例如：这枚冰箱贴，承载了整个城市的回忆" />
+          </div>
+          <div class="field">
+            <label>作者 / 链接（可选）</label>
+            <input type="text" id="artMeta" placeholder="冰箱贴大王 / https://mp.weixin.qq.com/s/xxx" />
+          </div>
+        </div>
+        <div class="field">
+          <label>文章HTML原文（必填，复制整篇公众号文章的HTML源码）</label>
+          <textarea id="artHtml" rows="8" placeholder="<html>...公众号文章完整HTML..."></textarea>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary" onclick="importArticle()">📥 导入这篇</button>
+          <button class="btn" onclick="document.getElementById('artHtml').value='';document.getElementById('artTitle').value='';">清空</button>
+        </div>
+
+        <div id="articlesList" style="margin-top: 20px;"></div>
+      </div>
+
+      <!-- 风格档案 -->
+      <div class="card" style="grid-column: 1 / -1;">
+        <h2><span class="bar"></span>风格档案</h2>
+        <div class="sub">导入 ≥ 1 篇文章后，点"开始学习"生成写作风格画像与排版模板</div>
+        <div class="steps" id="initSteps">
+          <div class="step-item" data-s="1"><span class="idx">①</span>导入 ≥1 篇历史文章</div>
+          <div class="step-item" data-s="2"><span class="idx">②</span>生成风格档案</div>
+          <div class="step-item" data-s="3"><span class="idx">③</span>抽检验收</div>
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom: 16px;">
+          <button class="btn success" id="btnLearn" onclick="learnStyle()">🧠 开始学习风格</button>
+          <button class="btn" onclick="loadStatus()">刷新档案状态</button>
+        </div>
+        <div id="styleBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Tab 2: 热点 ========== -->
+  <div class="tab-panel" data-panel="hotspots">
+    <div class="card" style="margin-bottom: 20px;">
+      <h2><span class="bar"></span>热点聚合（30分钟缓存）</h2>
+      <div class="sub">来源：微博热搜 / 百度热搜 / 微信热搜 · 自动关联「冰箱贴」关键词</div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
+        <button class="btn primary" onclick="loadHotspots(true)">🔄 重新抓取热点</button>
+        <div>
+          <input type="text" id="hotspotFilter" placeholder="🔎 筛选关键词（如：美食、旅行、城市…）" style="width: 280px;" oninput="renderHotspots(null, this.value)"/>
+        </div>
+        <select id="relFilter" onchange="renderHotspots()">
+          <option value="">全部关联度</option>
+          <option value="强关联">强关联</option>
+          <option value="中关联">中关联</option>
+          <option value="弱关联">弱关联</option>
+          <option value="未关联">未关联</option>
+        </select>
+        <span style="color: var(--text-muted); font-size:12px; margin-left:auto;" id="hotspotSummary"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="hotspot-list">
+        <div class="hotspot-row header-row">
+          <div class="rank">#</div>
+          <div>标题</div>
+          <div style="text-align:right;">热度</div>
+          <div style="text-align:right;">关联度 / 操作</div>
+        </div>
+        <div id="hotspotBody"><div class="empty"><div class="big">📡</div>点上方按钮抓取热点</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Tab 3: 生成 ========== -->
+  <div class="tab-panel" data-panel="generate">
+    <div class="grid-2">
+      <div class="card">
+        <h2><span class="bar"></span>新文章生成</h2>
+        <div class="sub">方式A：从热点 Tab 一键带过来；方式B：自己填选题</div>
+        <div class="alert info" id="selectedHotspotBox">未选择热点，请先到「热点搜集」点「用这个写」或填自定义选题。</div>
+        <div class="field">
+          <label>自定义选题（优先级高于热点）</label>
+          <input type="text" id="customTopic" placeholder="如：为什么每去一个城市都要收集一枚冰箱贴？"/>
+        </div>
+        <div class="field">
+          <label>补充背景信息（可选）</label>
+          <textarea id="extraContext" rows="3" placeholder="例如：最近去了趟上海迪士尼，想要结合上海+迪士尼元素的冰箱贴..."></textarea>
+        </div>
+        <button class="btn primary" onclick="runGenerate()">✨ 生成文章（套用风格档案）</button>
+      </div>
+
+      <div class="card">
+        <h2><span class="bar"></span>生成结果（草稿列表）</h2>
+        <div class="sub">生成的中间稿保存在本地，可多次重试、编辑</div>
+        <div id="draftsMini"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Tab 4: 草稿与发布 ========== -->
+  <div class="tab-panel" data-panel="drafts">
+    <div class="card" style="margin-bottom: 20px;">
+      <h2><span class="bar"></span>草稿列表</h2>
+      <table>
+        <thead>
+          <tr><th>标题</th><th>字数</th><th>来源</th><th>状态</th><th>通知</th><th>操作</th></tr>
+        </thead>
+        <tbody id="draftsTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========== Tab 5: 通知记录 ========== -->
+  <div class="tab-panel" data-panel="notify">
+    <div class="card">
+      <h2><span class="bar"></span>推送通知记录（Server酱 / PushPlus）</h2>
+      <table>
+        <thead><tr><th>时间</th><th>渠道</th><th>标题</th><th>关联草稿</th><th>结果</th></tr></thead>
+        <tbody id="notifyTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- ========== Modal：草稿详情 ========== -->
+<div class="modal-bg" id="draftModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="dmTitle">草稿详情</h3>
+      <button class="close-btn" onclick="closeModal()">×</button>
+    </div>
+    <div id="dmBody"></div>
+  </div>
+</div>
+
+<script>
+// ============ 通用 ============
+const $ = (q, r = document) => r.querySelector(q);
+const $$ = (q, r = document) => [...r.querySelectorAll(q)];
+function toast(msg, kind = '') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + kind;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+async function api(path, { method = 'GET', body, raw } = {}) {
+  const opt = { method, headers: {} };
+  if (body) {
+    opt.body = JSON.stringify(body);
+    opt.headers['Content-Type'] = 'application/json';
+  }
+  const resp = await fetch(path, opt);
+  const json = await resp.json();
+  if (!resp.ok || json.code !== 0) {
+    throw new Error(json.msg || ('请求失败:' + resp.status));
+  }
+  return raw ? json : json.data;
+}
+let currentHotspot = null;
+let draftsCache = [];
+let hotspotsCache = null;
+
+// ============ Tabs ============
+$$('.tab').forEach((t) => t.addEventListener('click', () => {
+  const name = t.dataset.tab;
+  $$('.tab').forEach((x) => x.classList.toggle('active', x === t));
+  $$('.tab-panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === name));
+  if (name === 'hotspots' && !hotspotsCache) loadHotspots();
+  if (name === 'drafts') loadDraftsFull();
+  if (name === 'notify') loadNotifyList();
+  if (name === 'generate') loadDraftsMini();
+}));
+
+// ============ Status / Init ============
+async function loadStatus() {
+  $('#sLoad').innerHTML = '<span class="loading"></span> 刷新中';
+  try {
+    const s = await api('/api/system/status');
+    renderStatus(s);
+  } catch (e) {
+    toast('加载状态失败：' + e.message, 'err');
+  } finally {
+    $('#sLoad').textContent = '🔄 刷新状态';
+  }
+}
+
+function renderStatus(s) {
+  const e = s.env;
+  $('#exitIp').value = s.localExitIp || '无法获取';
+  const pillClass = (t) => t.includes('已配置') || t.includes('已完成') ? 'pill ok' : 'pill warn';
+  $('#statusPill').innerHTML = `
+    <span class="${pillClass(e.wechat)}">📮 微信：${e.wechat} (${e.wechatAppid})</span>
+    <span class="${pillClass(e.llm)}">🧠 LLM：${e.llm}</span>
+    <span class="${pillClass(e.serverchan === '已配置' || e.pushplus === '已配置' ? '已配置' : '未配置')}">🔔 推送：${e.serverchan === '已配置' ? 'Server酱' : (e.pushplus === '已配置' ? 'PushPlus' : '未配置')}</span>
+    <span class="${pillClass(s.style.hasWritingProfile ? '已完成' : '未配置')}">🎨 风格：${s.style.articleCount} 篇 · ${s.style.hasWritingProfile ? '已学习' : '未学习'}</span>
+  `;
+
+  const sb = $('#statusBox');
+  const row = (label, v) => `<div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 13px;"><span style="color:var(--text-muted);">${label}</span><span style="font-weight:500;">${v}</span></div>`;
+  sb.innerHTML = `
+    ${row('微信公众号凭证', e.wechat)}
+    ${row('大模型 (LLM)', e.llm)}
+    ${row('Server酱推送', e.serverchan)}
+    ${row('PushPlus推送', e.pushplus)}
+    ${row('Unsplash图库', e.unsplash)}
+    ${row('Pexels图库', e.pexels)}
+  `;
+
+  // init steps
+  $$('#initSteps .step-item').forEach((el) => el.classList.remove('done', 'active'));
+  const el1 = $(`#initSteps [data-s="1"]`);
+  const el2 = $(`#initSteps [data-s="2"]`);
+  const el3 = $(`#initSteps [data-s="3"]`);
+  if (s.style.articleCount >= 1) el1.classList.add('done'); else el1.classList.add('active');
+  if (s.style.hasWritingProfile) { el2.classList.add('done'); el3.classList.add('active'); }
+  else if (s.style.articleCount >= 1) el2.classList.add('active');
+
+  loadArticlesList();
+  loadStyleBox();
+  renderStatRow(s);
+}
+
+function renderStatRow(s) {
+  const stats = [
+    { num: s.style.articleCount, label: '已导入历史文章' },
+    { num: s.style.hasWritingProfile ? '✓' : '—', label: '写作风格画像' },
+    { num: s.style.hasTemplate ? '✓' : '—', label: '排版模板' },
+    { num: draftsCache.length, label: '生成中的草稿' },
+  ];
+  $('#statRow').innerHTML = stats.map((s) => `
+    <div class="stat"><div class="num">${s.num}</div><div class="label">${s.label}</div></div>
+  `).join('');
+}
+
+async function testWechatPermission() {
+  const box = $('#wechatTestBox');
+  box.className = 'alert info';
+  box.innerHTML = '<span class="loading"></span> 正在检测（取access_token）...';
+  try {
+    const res = await api('/api/debug/wechat-permission', { raw: true });
+    if (res.code === 0) {
+      box.className = 'alert ok';
+      box.innerHTML = `✅ 凭证正常（AppID: ${res.data.appid}）。<br>请先在后台把 IP <b>${$('#exitIp').value}</b> 加白名单，然后按"草稿 Tab → 推草稿 → 点推送"测 draft/add 实际权限。若报 48001/48002 会自动切到降级模式。`;
+    } else {
+      box.className = 'alert err';
+      box.innerHTML = `❌ 凭证异常：${res.msg}<br>请检查 AppID/AppSecret 是否正确，并把 IP <b>${$('#exitIp').value}</b> 加进白名单。`;
+    }
+  } catch (e) {
+    box.className = 'alert err';
+    box.innerHTML = `❌ 检测失败：${e.message}<br>（若报40164说明IP白名单未配置，把当前显示的IP加到后台再试）`;
+  }
+}
+
+// ============ 历史文章导入 ============
+async function importArticle() {
+  const html = $('#artHtml').value.trim();
+  const title = $('#artTitle').value.trim();
+  const meta = $('#artMeta').value.trim();
+  if (!html) { toast('请粘贴HTML原文', 'err'); return; }
+  const btn = event.target;
+  btn.disabled = true; btn.innerHTML = '<span class="loading"></span> 导入中...';
+  try {
+    const [author, url] = meta.split('/').map(s => s.trim());
+    const r = await api('/api/system/articles', { method: 'POST', body: { html, title, url, author } });
+    toast(`已导入「${r.title || r.id}」${r.wordCount}字`, 'ok');
+    $('#artHtml').value = ''; $('#artTitle').value = ''; $('#artMeta').value = '';
+    await loadStatus();
+  } catch (e) { toast('导入失败：' + e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = '📥 导入这篇'; }
+}
+
+async function loadArticlesList() {
+  const r = await api('/api/system/articles');
+  const box = $('#articlesList');
+  if (r.total === 0) { box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <h3 style="font-size:14px; margin: 0 0 10px; color: var(--text-muted);">已导入 ${r.total} 篇</h3>
+    <table>
+      <thead><tr><th>标题</th><th>字数</th><th>图片</th><th>导入时间</th><th></th></tr></thead>
+      <tbody>
+      ${r.list.map((a) => `<tr>
+        <td style="font-weight:500;">${a.title || '(未命名)'}</td>
+        <td>${a.wordCount}</td>
+        <td>${a.imgCount}张</td>
+        <td style="color: var(--text-muted); font-size:12px;">${new Date(a.createdAt).toLocaleString('zh-CN')}</td>
+        <td><button class="btn sm danger" onclick="deleteArticle('${a.id}')">删除</button></td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+}
+async function deleteArticle(id) {
+  if (!confirm('确认删除这篇历史文章？')) return;
+  await api('/api/system/articles/' + id, { method: 'DELETE' });
+  toast('已删除', 'ok'); loadStatus();
+}
+
+// ============ 风格学习 ============
+async function learnStyle() {
+  const btn = $('#btnLearn');
+  btn.disabled = true; btn.innerHTML = '<span class="loading"></span> LLM正在学习（约10秒）...';
+  try {
+    const r = await api('/api/system/learn-style', { method: 'POST' });
+    toast(`学习完成：${r.articleCount} 篇 → 写作画像 + 排版模板`, 'ok');
+    loadStatus();
+  } catch (e) { toast('学习失败：' + e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = '🧠 开始学习风格'; }
+}
+async function loadStyleBox() {
+  try {
+    const { writing, template, articleCount } = await api('/api/system/style-profile');
+    const sb = $('#styleBox');
+    if (!writing && !template) {
+      sb.innerHTML = `<div class="empty"><div class="big">📝</div>尚未学习：导入文章后点上方"开始学习风格"</div>`;
+      return;
+    }
+    sb.innerHTML = `
+      <div class="grid-2">
+        <div>
+          <div style="font-weight:600; margin-bottom:8px; color: var(--brand-strong);">🎨 写作风格画像（${writing.sampleCount || articleCount}篇）</div>
+          <div style="font-size:13px; line-height:1.8; padding:12px; background: var(--bg); border-radius:8px;">
+            ${writing ? `
+              <div><b>语气调性：</b>${writing.tone || '—'}</div>
+              <div><b>结构模式：</b>${writing.structure || '—'}</div>
+              <div><b>典型开头：</b>${writing.typicalOpening || '—'}</div>
+              <div><b>典型结尾：</b>${writing.typicalEnding || '—'}</div>
+              <div><b>句式：</b>${writing.sentenceStyle || '—'}</div>
+              <div><b>标题形式：</b>${writing.titlePattern || '—'}</div>
+              <div><b>冰箱贴切入方式：</b>${writing.fridgeMagnetHookStyle || '—'}</div>
+              <div><b>建议字数：</b>${writing.targetWordRange || '—'}</div>
+              <div><b>常用词汇：</b>${(writing.wordPreferences || []).join('、') || '—'}</div>
+            ` : '暂无画像'}
+          </div>
+        </div>
+        <div>
+          <div style="font-weight:600; margin-bottom:8px; color: var(--brand-strong);">📐 排版模板</div>
+          <div style="font-size:13px; line-height:1.8; padding:12px; background: var(--bg); border-radius:8px;">
+            ${template ? `
+              <div><b>样本数：</b>${template.sampleCount}</div>
+              <div><b>平均字数：</b>${template.avgWords}</div>
+              <div><b>平均图片数：</b>${template.avgImg} 张</div>
+              <div><b>发现高频样式（${template.commonStyles.length}种）：</b></div>
+              <div style="max-height: 180px; overflow:auto; margin-top: 6px;">
+                ${template.commonStyles.slice(0, 20).map((s) => `<div style="padding: 4px 6px; border-bottom: 1px dashed var(--border);"><code style="font-size:11px; color:var(--brand); font-weight:600;"><${s.tag}></code> · 出现率${Math.round(s.rate * 100)}%<br><span style="color:var(--text-subtle); font-size:11px;">${s.style.slice(0, 160)}${s.style.length > 160 ? '...' : ''}</span></div>`).join('')}
+              </div>
+            ` : '暂无模板，请先导入文章再学习'}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (e) { $('#styleBox').innerHTML = `<div class="alert err">${e.message}</div>`; }
+}
+
+// ============ 热点 ============
+async function loadHotspots(force = false) {
+  const body = $('#hotspotBody');
+  body.innerHTML = `<div class="empty"><div class="big"><span class="loading"></span></div>抓取中...</div>`;
+  try {
+    const r = await api('/api/hotspots' + (force ? '?force=1' : ''));
+    hotspotsCache = r;
+    renderHotspots(r);
+    toast(`抓取完成 ${r.total} 条热点`, 'ok');
+  } catch (e) {
+    body.innerHTML = `<div class="empty"><div class="big">⚠️</div>抓取失败：${e.message}</div>`;
+    toast(e.message, 'err');
+  }
+}
+function renderHotspots(data = hotspotsCache, filterText = '') {
+  if (!data) return;
+  const sum = data.summary;
+  $('#hotspotSummary').innerHTML = `共 ${data.total} 条 · <span class="tag strong">强关联 ${sum.strong}</span> <span class="tag medium">中关联 ${sum.medium}</span> <span class="tag weak">弱关联 ${sum.weak}</span> · 更新于 ${new Date(data.fetchedAt).toLocaleTimeString('zh-CN')}`;
+  const rel = $('#relFilter').value;
+  const text = (filterText ?? $('#hotspotFilter').value).trim();
+  const items = data.items.filter((x) => {
+    if (rel && x.relevance !== rel) return false;
+    if (text && !(x.title + (x.relevanceHits || []).join('')).toLowerCase().includes(text.toLowerCase())) return false;
+    return true;
+  });
+  if (items.length === 0) {
+    $('#hotspotBody').innerHTML = `<div class="empty"><div class="big">🔍</div>无匹配</div>`;
+    return;
+  }
+  const tmap = { '强关联': 'strong', '中关联': 'medium', '弱关联': 'weak', '未关联': 'none' };
+  $('#hotspotBody').innerHTML = items.slice(0, 300).map((h) => `
+    <div class="hotspot-row">
+      <div class="rank">${h.rank || '·'}</div>
+      <div>
+        <div class="title" onclick="window.open('${h.url || '#'}', '_blank')">${h.title}</div>
+        <div style="font-size:11px; color: var(--text-subtle); margin-top: 2px;">关键词命中：${(h.relevanceHits || []).join('、') || '无'}</div>
+      </div>
+      <div style="text-align:right; font-size:12px; color:var(--text-muted);">${Number(h.hot || 0).toLocaleString()}</div>
+      <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+        <span class="tag ${tmap[h.relevance] || 'none'}">${h.relevance}</span>
+        <span class="tag none">${h.source}</span>
+        <button class="btn sm primary" onclick='selectHotspot(${JSON.stringify(h).replace(/'/g, "&#39;")})'>用这个写</button>
+      </div>
+    </div>
+  `).join('');
+}
+function selectHotspot(h) {
+  currentHotspot = h;
+  const box = $('#selectedHotspotBox');
+  box.className = 'alert ok';
+  box.innerHTML = `✅ 已选热点：<b>${h.title}</b>（${h.source}，关联度：${h.relevance}）<br><small>切到Tab"生成/编辑"→ 点生成文章即可。也可在下方填自定义选题覆盖。</small>`;
+  $$('.tab').forEach((x) => x.classList.toggle('active', x.dataset.tab === 'generate'));
+  $$('.tab-panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === 'generate'));
+  loadDraftsMini();
+}
+
+// ============ 生成草稿 ============
+async function runGenerate() {
+  const custom = $('#customTopic').value.trim();
+  const ctx = $('#extraContext').value.trim();
+  if (!currentHotspot && !custom) { toast('请先选热点或填自定义选题', 'err'); return; }
+  const btn = event.target; btn.disabled = true; btn.innerHTML = '<span class="loading"></span> LLM生成中（约20秒）...';
+  try {
+    const d = await api('/api/articles/generate', { method: 'POST', body: { hotspot: currentHotspot, overrideTitle: custom, extraContext: ctx } });
+    toast(`生成成功：「${d.middle.selected_title}」${(d.middle.body_md || '').length}字`, 'ok');
+    draftsCache.unshift(d);
+    loadDraftsMini();
+    loadStatus();
+    // 切到草稿Tab
+    setTimeout(() => openDraftDetail(d.id), 500);
+  } catch (e) { toast('生成失败：' + e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = '✨ 生成文章（套用风格档案）'; }
+}
+async function loadDraftsMini() {
+  try {
+    const r = await api('/api/articles/drafts');
+    draftsCache = r.list;
+    const box = $('#draftsMini');
+    if (r.total === 0) { box.innerHTML = `<div class="empty"><div class="big">✍️</div>还没有草稿，用上面的表单开始吧</div>`; return; }
+    box.innerHTML = `<div style="max-height:420px; overflow:auto;">
+      ${r.list.slice(0, 20).map((d) => `
+        <div style="padding:10px 0; border-bottom:1px dashed var(--border);">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${d.title}</div>
+              <div style="font-size:11px; color: var(--text-subtle); margin-top:2px;">${new Date(d.createdAt).toLocaleString('zh-CN')} · ${d.wordCount}字 · 状态：${d.status}</div>
+            </div>
+            <button class="btn sm" onclick="openDraftDetail('${d.id}')">查看</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+    renderStatRow((await api('/api/system/status')));
+  } catch (e) { console.error(e); }
+}
+
+// ============ 草稿管理 ============
+async function loadDraftsFull() {
+  try {
+    const r = await api('/api/articles/drafts');
+    draftsCache = r.list;
+    const statusMap = {
+      generated: { text: '已生成', cls: 'tag.none' },
+      rendered: { text: '已渲染HTML', cls: 'tag.medium' },
+      submitted: { text: '已进微信草稿箱', cls: 'tag.done' },
+      fallback: { text: '降级模式', cls: 'tag.fallback' },
+    };
+    $('#draftsTable').innerHTML = r.list.length === 0
+      ? `<tr><td colspan="6" class="empty"><div class="big">📭</div>暂无草稿</td></tr>`
+      : r.list.map((d) => {
+          const s = statusMap[d.status] || statusMap.generated;
+          return `<tr>
+            <td style="font-weight:500;">${d.title}</td>
+            <td>${d.wordCount}</td>
+            <td style="font-size:12px; color:var(--text-muted);">${d.fromHotspot ? (d.fromHotspot.source + '：' + d.fromHotspot.title.slice(0, 12)) : '自定义'}</td>
+            <td><span class="tag ${s.cls}">${s.text}</span></td>
+            <td>${d.notifiedAt ? `<span class="tag done">已通知 ${new Date(d.notifiedAt).toLocaleDateString('zh-CN')}</span>` : '<span class="tag pending">未通知</span>'}</td>
+            <td style="display:flex; gap:4px; flex-wrap:wrap;">
+              <button class="btn sm" onclick="openDraftDetail('${d.id}')">查看/编辑</button>
+              <button class="btn sm primary" onclick="renderDraft('${d.id}')">配图+渲染</button>
+              <button class="btn sm success" onclick="submitDraft('${d.id}')">推草稿箱</button>
+              <button class="btn sm" onclick="notifyDraft('${d.id}')">🔔 通知</button>
+              <button class="btn sm danger" onclick="delDraft('${d.id}')">删除</button>
+            </td>
+          </tr>`;
+        }).join('');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function openDraftDetail(id) {
+  const d = draftsCache.find((x) => x.id === id);
+  if (!d) { loadDraftsFull(); return; }
+  $('#dmTitle').textContent = `草稿详情 · ${d.title || d.id}`;
+  const m = d.middle || {};
+  const body = m.body_md || '';
+  $('#dmBody').innerHTML = `
+    <div class="steps" style="margin-top:0;">
+      <div class="step-item ${['generated','rendered','submitted','fallback'].includes(d.status) ? 'done' : ''}" style="${d.status === 'generated' ? '' : ''}"><span class="idx">①</span>中间稿生成</div>
+      <div class="step-item ${['rendered','submitted','fallback'].includes(d.status) ? 'done' : ''}"><span class="idx">②</span>配图+渲染HTML</div>
+      <div class="step-item ${['submitted','fallback'].includes(d.status) ? 'done' : ''}"><span class="idx">③</span>推入微信草稿箱</div>
+      <div class="step-item ${d.notifiedAt ? 'done' : ''}"><span class="idx">④</span>推送审稿通知</div>
+    </div>
+    <div style="margin: 20px 0; display:grid; gap:12px;">
+      <div class="field-row">
+        <div class="field">
+          <label>主标题（≤32字）</label>
+          <input type="text" id="f_title" value="${escapeAttr(m.selected_title || '')}" maxlength="64"/>
+        </div>
+        <div class="field">
+          <label>作者</label>
+          <input type="text" id="f_author" value="${escapeAttr(m.author || '冰箱贴大王')}" maxlength="16"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>摘要（≤128字，公众平台digest字段）</label>
+        <input type="text" id="f_digest" value="${escapeAttr(m.digest || '')}" maxlength="128"/>
+      </div>
+      <div class="field">
+        <label>标题候选（参考）</label>
+        <div style="font-size:13px; color: var(--text-muted); padding:8px 12px; background: var(--bg); border-radius:6px;">
+          ${(m.title_candidates || []).map((t, i) => `${i + 1}. ${t}`).join('<br>') || '—'}
+        </div>
+      </div>
+      <div class="field">
+        <label>正文（Markdown，可直接编辑）</label>
+        <textarea id="f_body" rows="12" style="font-family: ui-monospace, monospace;">${escapeHtml(body)}</textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>封面图描述</label>
+          <input type="text" id="f_cover" value="${escapeAttr(m.cover_description || '')}"/>
+        </div>
+        <div class="field">
+          <label>文中小图描述（逗号分隔，2-4个最佳）</label>
+          <input type="text" id="f_inline" value="${escapeAttr((m.inline_image_descriptions || []).join('，'))}"/>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; padding: 14px 0; border-top:1px dashed var(--border);">
+      <button class="btn" onclick="saveDraftEdit('${id}')">💾 保存编辑</button>
+      <button class="btn primary" onclick="renderDraft('${id}'); closeModal();">🎨 配图+渲染微信HTML</button>
+      <button class="btn success" onclick="submitDraft('${id}'); closeModal();">📮 推入微信草稿箱</button>
+      <button class="btn" onclick="notifyDraft('${id}'); closeModal();">🔔 推送审稿通知</button>
+      <div style="flex:1"></div>
+      <button class="btn danger" onclick="delDraft('${id}'); closeModal();">删除草稿</button>
+    </div>
+
+    ${d.rendered ? `
+      <div style="margin-top: 12px;">
+        <h4 style="margin: 12px 0 6px;">📄 渲染后的 HTML 预览</h4>
+        <div class="html-preview">${d.rendered.content || ''}</div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="btn" onclick="copyText('${d.id}','html')">📋 复制整段HTML</button>
+          <button class="btn" onclick="copyText('${d.id}','md')">📋 复制Markdown</button>
+        </div>
+      </div>
+    ` : ''}
+
+    ${d.submitResult ? `
+      <div class="alert ${d.submitResult.ok ? 'ok' : 'warn'}" style="margin-top:16px;">
+        ${d.submitResult.ok
+          ? `✅ 写入微信草稿箱成功，media_id: <code style="background:#f0ecff; padding:2px 6px; border-radius:4px;">${d.submitResult.media_id}</code>，可到后台或公众号助手查看`
+          : `⚠️ 降级模式：draft/add 接口权限不足。${d.submitResult.message}<br>${(d.submitResult.fallbacks?.instructions || []).map((s, i) => `${i + 1}. ${s}`).join('<br>')}`
+        }
+      </div>
+    ` : ''}
+  `;
+  $('#draftModal').classList.add('show');
+}
+
+function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function closeModal() { $('#draftModal').classList.remove('show'); }
+$('#draftModal').addEventListener('click', (e) => { if (e.target.id === 'draftModal') closeModal(); });
+
+async function saveDraftEdit(id) {
+  const selected_title = $('#f_title').value.trim();
+  const author = $('#f_author').value.trim();
+  const digest = $('#f_digest').value.trim();
+  const body_md = $('#f_body').value;
+  const cover_description = $('#f_cover').value.trim();
+  const inline_image_descriptions = $('#f_inline').value.split(/[，,、]/).map(s => s.trim()).filter(Boolean);
+  try {
+    await api('/api/articles/drafts/' + id, { method: 'PATCH', body: {
+      middle: { ...(draftsCache.find(x => x.id === id)?.middle || {}),
+        selected_title, author, digest, body_md, cover_description, inline_image_descriptions
+      }
+    }});
+    toast('已保存编辑', 'ok');
+    loadDraftsMini(); loadDraftsFull();
+  } catch (e) { toast('保存失败：' + e.message, 'err'); }
+}
+
+async function copyText(id, kind) {
+  const d = await api('/api/articles/drafts/' + id);
+  let text = '';
+  if (kind === 'html') text = d.rendered?.content || '';
+  else text = d.middle?.body_md || '';
+  if (!text) { toast('没有可复制的内容', 'err'); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('已复制到剪贴板', 'ok');
+  } catch (e) {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    toast('已复制', 'ok');
+  }
+}
+
+async function renderDraft(id) {
+  try {
+    toast('配图+渲染中...');
+    await api('/api/articles/drafts/' + id + '/render', { method: 'POST' });
+    toast('已渲染完成', 'ok');
+    loadDraftsFull();
+  } catch (e) { toast('渲染失败：' + e.message, 'err'); }
+}
+
+async function submitDraft(id) {
+  try {
+    toast('推入微信草稿箱（上传素材+写草稿）约需10-30秒...');
+    const r = await api('/api/articles/drafts/' + id + '/submit', { method: 'POST' });
+    if (r.submitResult?.ok) toast(`✅ 写入草稿箱成功！media_id=${r.submitResult.media_id}`, 'ok');
+    else toast('已切降级模式：请复制HTML粘贴到后台', 'warn');
+    loadDraftsFull();
+  } catch (e) { toast('推送失败：' + e.message, 'err'); }
+}
+
+async function notifyDraft(id) {
+  try {
+    const r = await api('/api/articles/drafts/' + id + '/notify', { method: 'POST' });
+    toast('🔔 审稿通知已推送到您的微信，请查收', 'ok');
+    loadDraftsFull(); loadNotifyList();
+  } catch (e) { toast('通知失败：' + e.message, 'err'); }
+}
+
+async function delDraft(id) {
+  if (!confirm('确认删除该草稿？')) return;
+  await api('/api/articles/drafts/' + id, { method: 'DELETE' });
+  toast('已删除', 'ok');
+  loadDraftsMini(); loadDraftsFull(); loadStatus();
+}
+
+// ============ 通知记录 ============
+async function loadNotifyList() {
+  try {
+    const r = await api('/api/notifications');
+    const body = $('#notifyTable');
+    if (r.list.length === 0) { body.innerHTML = `<tr><td colspan="5" class="empty"><div class="big">🔕</div>还没有推送记录</td></tr>`; return; }
+    body.innerHTML = r.list.map((n) => `
+      <tr>
+        <td style="font-size:12px; color:var(--text-muted);">${new Date(n.createdAt).toLocaleString('zh-CN')}</td>
+        <td><span class="tag none">${n.channel}</span></td>
+        <td style="font-weight:500;">${n.title}</td>
+        <td style="font-size:12px; color:var(--text-muted);">${n.draftId ? `<button class="btn sm" onclick="openDraftDetail('${n.draftId}')">打开草稿</button>` : '—'}</td>
+        <td>${n.result?.success ? '<span class="tag done">成功</span>' : `<span class="tag pending">失败</span><br><small style="color:var(--text-muted)">${escapeHtml(JSON.stringify(n.result?.raw || '').slice(0, 120))}</small>`}</td>
+      </tr>
+    `).join('');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ============ 启动 ============
+loadStatus();
+loadDraftsMini();
+</script>
+</body>
+</html>

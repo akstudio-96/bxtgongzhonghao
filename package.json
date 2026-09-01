@@ -1,0 +1,22 @@
+{
+  "name": "fridge-magnet-publisher",
+  "version": "1.0.0",
+  "description": "冰箱贴主题公众号自动化生产与发布工具（本地网页应用）",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "author": "冰箱贴大王",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1"
+  }
+}
