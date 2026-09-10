@@ -4,3 +4,6 @@ data/
 public/bundle.*
 *.log
 .DS_Store
+.trae-html-share-packages/
+.vscode/
+.idea/
