@@ -3,13 +3,15 @@
  * 聚合3个来源：微博热搜、百度热搜、微信读书/搜一搜热搜
  * 然后做冰箱贴主题关联筛选：
  *  - 强关联：含关键词冰箱贴/magnet/磁吸/磁铁/磁力贴
- *  - 弱关联：含家居/装饰/旅行/文创/礼物/城市/纪念等关键词，可结合LLM判断是否能"蹭"
+ *  - 弱关联：含家居/装饰/旅行/文创/礼物/城市/纪念等关键词
+ *  - AI关联：对未关联/弱关联的热点，调用LLM判断"能否蹭出冰箱贴切入点"，给出切入角度
  *  - 分数排序，输出带关联度标签
  */
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { readJson, writeJson, DATA_DIR, genId, sleep } = require('../utils/helpers');
 const path = require('path');
+const LLM = require('./llm');
 
 const CACHE_FILE = path.join(DATA_DIR, 'hotspots.json');
 
@@ -123,6 +125,58 @@ function calcRelevance(title) {
   return { score, label, hits: Array.from(new Set(hits)) };
 }
 
+/**
+ * LLM 语义关联判断（对字面未关联的热点批量打分）
+ * 输入：[{title, source}]
+ * 输出：[{ title, ai_relevance: '可蹭'|'难蹭', ai_score: 0~10, ai_angle: '切入角度描述' }]
+ * 失败时静默降级（返回空数组，不影响主流程）
+ */
+async function llmJudgeRelevance(items, batchSize = 15) {
+  if (!items || !items.length) return [];
+  if (!LLM.getConfig().ready) return [];
+
+  const results = [];
+  // 分批处理，避免单次prompt过长
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const titles = batch.map((it, idx) => `${idx + 1}. ${it.title}`).join('\n');
+    const systemPrompt = `您是「冰箱贴大王」公众号的选题策划。冰箱贴主题可蹭的角度很广：文创纪念、城市旅行、节日节气、家居装饰、收藏癖、联名周边、影视游戏IP、博物馆展陈、非遗文化、宠物植物、美食餐厅、人生仪式感等。
+对每个热点标题判断：能否在合理创意下蹭出冰箱贴切入点？`;
+    const userPrompt = `判断下面每条热点能否蹭出冰箱贴切入点，输出JSON数组：
+${titles}
+
+输出格式（严格遵守，无多余文字）：
+[
+  {"index":1,"ai_relevance":"可蹭|难蹭","ai_score":0到10的整数,"ai_angle":"不超过30字的切入角度描述"}
+]
+只输出JSON数组，不要\`\`\`json。`;
+    try {
+      const raw = await LLM.callLLM({
+        system: systemPrompt,
+        prompt: userPrompt,
+        temperature: 0.3,
+        jsonMode: true,
+      });
+      const m = /\[[\s\S]*\]/.exec(raw);
+      const parsed = m ? JSON.parse(m[0]) : [];
+      for (const p of parsed) {
+        const it = batch[(p.index || 1) - 1];
+        if (it) results.push({
+          title: it.title,
+          ai_relevance: p.ai_relevance || '难蹭',
+          ai_score: typeof p.ai_score === 'number' ? p.ai_score : 0,
+          ai_angle: (p.ai_angle || '').slice(0, 60),
+        });
+      }
+    } catch (e) {
+      console.warn('[hotspot] LLM关联判断失败，跳过本批：', e.message);
+    }
+    // 批之间稍微间隔，避免触发速率限制
+    if (i + batchSize < items.length) await sleep(800);
+  }
+  return results;
+}
+
 /** 主入口：聚合 + 去重 + 打分 + 缓存 */
 async function fetchAllHotspots({ force = false } = {}) {
   const cached = readJson(CACHE_FILE, null);
@@ -164,6 +218,28 @@ async function fetchAllHotspots({ force = false } = {}) {
     }
   }
 
+  // LLM 语义关联判断：仅对未关联/弱关联的热点批量处理（强关联/中关联不用判断）
+  const toJudge = merged.filter((x) => x.relevance === '未关联' || x.relevance === '弱关联');
+  if (toJudge.length && LLM.getConfig().ready) {
+    console.log(`[hotspot] 调用 LLM 判断 ${toJudge.length} 条热点的冰箱贴关联度...`);
+    const aiResults = await llmJudgeRelevance(toJudge);
+    const aiMap = new Map(aiResults.map((r) => [r.title, r]));
+    for (const item of merged) {
+      const ai = aiMap.get(item.title);
+      if (ai) {
+        item.ai_relevance = ai.ai_relevance;
+        item.ai_score = ai.ai_score;
+        item.ai_angle = ai.ai_angle;
+        // AI 判断"可蹭"且分数较高，提升关联分用于排序
+        if (ai.ai_relevance === '可蹭' && ai.ai_score >= 6) {
+          item.relevanceScore += ai.ai_score;
+          // 如果原来是"未关联"，升级为"AI可蹭"标签
+          if (item.relevance === '未关联') item.relevance = 'AI可蹭';
+        }
+      }
+    }
+  }
+
   // 排序：关联分降序，热度降序
   merged.sort((a, b) => (b.relevanceScore - a.relevanceScore) || (b.hot - a.hot));
 
@@ -174,6 +250,7 @@ async function fetchAllHotspots({ force = false } = {}) {
       strong: merged.filter((x) => x.relevance === '强关联').length,
       medium: merged.filter((x) => x.relevance === '中关联').length,
       weak: merged.filter((x) => x.relevance === '弱关联').length,
+      aiHookable: merged.filter((x) => x.relevance === 'AI可蹭').length,
       none: merged.filter((x) => x.relevance === '未关联').length,
     },
     items: merged,

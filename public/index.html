@@ -258,6 +258,7 @@
           <option value="强关联">强关联</option>
           <option value="中关联">中关联</option>
           <option value="弱关联">弱关联</option>
+          <option value="AI可蹭">AI可蹭</option>
           <option value="未关联">未关联</option>
         </select>
         <span style="color: var(--text-muted); font-size:12px; margin-left:auto;" id="hotspotSummary"></span>
@@ -575,34 +576,40 @@ async function loadHotspots(force = false) {
 function renderHotspots(data = hotspotsCache, filterText = '') {
   if (!data) return;
   const sum = data.summary;
-  $('#hotspotSummary').innerHTML = `共 ${data.total} 条 · <span class="tag strong">强关联 ${sum.strong}</span> <span class="tag medium">中关联 ${sum.medium}</span> <span class="tag weak">弱关联 ${sum.weak}</span> · 更新于 ${new Date(data.fetchedAt).toLocaleTimeString('zh-CN')}`;
+  const aiCount = sum.aiHookable || 0;
+  $('#hotspotSummary').innerHTML = `共 ${data.total} 条 · <span class="tag strong">强关联 ${sum.strong}</span> <span class="tag medium">中关联 ${sum.medium}</span> <span class="tag weak">弱关联 ${sum.weak}</span> <span class="tag medium" style="background:#EEF2FF;color:#6366F1;">AI可蹭 ${aiCount}</span> · 更新于 ${new Date(data.fetchedAt).toLocaleTimeString('zh-CN')}`;
   const rel = $('#relFilter').value;
   const text = (filterText ?? $('#hotspotFilter').value).trim();
   const items = data.items.filter((x) => {
     if (rel && x.relevance !== rel) return false;
-    if (text && !(x.title + (x.relevanceHits || []).join('')).toLowerCase().includes(text.toLowerCase())) return false;
+    if (text && !(x.title + (x.relevanceHits || []).join('') + (x.ai_angle || '')).toLowerCase().includes(text.toLowerCase())) return false;
     return true;
   });
   if (items.length === 0) {
     $('#hotspotBody').innerHTML = `<div class="empty"><div class="big">🔍</div>无匹配</div>`;
     return;
   }
-  const tmap = { '强关联': 'strong', '中关联': 'medium', '弱关联': 'weak', '未关联': 'none' };
-  $('#hotspotBody').innerHTML = items.slice(0, 300).map((h) => `
+  const tmap = { '强关联': 'strong', '中关联': 'medium', '弱关联': 'weak', '未关联': 'none', 'AI可蹭': 'medium' };
+  $('#hotspotBody').innerHTML = items.slice(0, 300).map((h) => {
+    const aiAngleHtml = h.ai_angle
+      ? `<div style="font-size:11px; color:#6366F1; margin-top: 2px;">💡 AI切入：${h.ai_angle}${h.ai_score != null ? ` (评分${h.ai_score})` : ''}</div>`
+      : '';
+    return `
     <div class="hotspot-row">
       <div class="rank">${h.rank || '·'}</div>
       <div>
         <div class="title" onclick="window.open('${h.url || '#'}', '_blank')">${h.title}</div>
         <div style="font-size:11px; color: var(--text-subtle); margin-top: 2px;">关键词命中：${(h.relevanceHits || []).join('、') || '无'}</div>
+        ${aiAngleHtml}
       </div>
       <div style="text-align:right; font-size:12px; color:var(--text-muted);">${Number(h.hot || 0).toLocaleString()}</div>
       <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-        <span class="tag ${tmap[h.relevance] || 'none'}">${h.relevance}</span>
+        <span class="tag ${tmap[h.relevance] || 'none'}" ${h.relevance === 'AI可蹭' ? 'style="background:#EEF2FF;color:#6366F1;"' : ''}>${h.relevance}</span>
         <span class="tag none">${h.source}</span>
         <button class="btn sm primary" onclick='selectHotspot(${JSON.stringify(h).replace(/'/g, "&#39;")})'>用这个写</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 function selectHotspot(h) {
   currentHotspot = h;
