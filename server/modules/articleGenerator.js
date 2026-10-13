@@ -54,16 +54,18 @@ ${stylePrompt}
 1. 全文必须围绕"冰箱贴"展开。即使给您的热点本身和冰箱贴不直接相关，也要用创意和想象力把它和冰箱贴关联起来（例如：做成冰箱贴周边、城市纪念冰箱贴、节日冰箱贴、联名款冰箱贴、冰箱贴收藏等）。
 2. 标题必须是公众号风格的"钩子型"标题，有吸引力，带点情感。
 3. 正文使用Markdown（#一级标题 = 文中小节标题；##二级 = 小节内子标题；- 列表；**粗体**）。
-4. 给出 3 个候选标题；正文开头要有摘要(abstract)作为公众平台 digest 字段的来源。
-5. 给出封面图的文字描述（中文，30字内），给 2~4 个文中小图位的描述（每个15字内）。
-6. 输出严格 JSON，不要任何多余文字。
+4. 给出 5 个候选标题，每个标题风格略有不同（情感型/数字型/反问型/对比型/故事型）；正文开头要有摘要(abstract)作为公众平台 digest 字段的来源。
+5. 给出该热点的背景信息（300字内，包含事件本身、为何热、和冰箱贴可能的关联点），供冰箱贴大王审稿参考。
+6. 给出封面图的文字描述（中文，30字内），给 2~4 个文中小图位的描述（每个15字内）。
+7. 输出严格 JSON，不要任何多余文字。
 
 ## 输出 JSON 字段（必须严格遵守字段名）
 {
-  "title_candidates": ["候选1", "候选2", "候选3"],
+  "title_candidates": ["候选1", "候选2", "候选3", "候选4", "候选5"],
   "selected_title": "最终选的主标题，<=32字",
   "author": "冰箱贴大王",
   "digest": "摘要 <=128字，适合公众号摘要栏",
+  "background_info": "热点背景信息 <=300字，含事件本身、为何热、与冰箱贴的关联点",
   "body_md": "正文Markdown（不含一级大标题），字数符合风格档案要求",
   "cover_description": "封面图描述（中文，<=30字，围绕冰箱贴+热点）",
   "inline_image_descriptions": ["文中配图1描述<=15字", "文中配图2描述<=15字", "文中配图3描述<=15字", "文中配图4描述<=15字"]
@@ -93,14 +95,23 @@ ${stylePrompt}
     const m = /\{[\s\S]*\}/.exec(raw);
     draft = JSON.parse(m ? m[0] : raw);
   } catch (e) {
-    throw new Error('文章生成结果解析失败：' + e.message + '\n原始：' + raw.slice(0, 500));
+    throw new Error('文章生成结果解析失败：' + e.message + '\n原始返回（前500字）：' + (raw || '').slice(0, 500));
+  }
+  if (!draft || typeof draft !== 'object') {
+    throw new Error('文章生成结果为空，LLM 未返回有效 JSON。原始返回（前500字）：' + (raw || '').slice(0, 500));
+  }
+  // 关键字段校验：正文为空就直接报错（避免静默存空草稿）
+  if (!draft.body_md || !draft.body_md.trim()) {
+    throw new Error('生成失败：LLM 返回的正文 body_md 为空。可能原因：DeepSeek 限流/网络/上下文超限。原始返回（前500字）：' + (raw || '').slice(0, 500));
   }
 
-  // 字段校验兜底
+  // 字段校验兜底（到这里 draft.body_md 一定非空）
   draft.selected_title = (draft.selected_title || draft.title_candidates?.[0] || topic).slice(0, 64);
   draft.author = draft.author || '冰箱贴大王';
   draft.digest = (draft.digest || '').slice(0, 128);
   draft.body_md = draft.body_md || '';
+  draft.title_candidates = Array.isArray(draft.title_candidates) ? draft.title_candidates.slice(0, 5) : [];
+  draft.background_info = (draft.background_info || '').slice(0, 600);
 
   const record = {
     id: genId('dft'),

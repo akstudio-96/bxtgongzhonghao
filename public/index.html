@@ -723,9 +723,15 @@ function openDraftDetail(id) {
         <input type="text" id="f_digest" value="${escapeAttr(m.digest || '')}" maxlength="128"/>
       </div>
       <div class="field">
-        <label>标题候选（参考）</label>
-        <div style="font-size:13px; color: var(--text-muted); padding:8px 12px; background: var(--bg); border-radius:6px;">
-          ${(m.title_candidates || []).map((t, i) => `${i + 1}. ${t}`).join('<br>') || '—'}
+        <label>标题候选（共${(m.title_candidates || []).length}个，点击可设为主标题）</label>
+        <div style="font-size:13px; padding:8px 12px; background: var(--bg); border-radius:6px; display:grid; gap:6px;">
+          ${(m.title_candidates || []).map((t, i) => `<div style="display:flex; align-items:center; gap:8px;"><span style="color:var(--brand-strong); font-weight:700; min-width:20px;">${i + 1}.</span><span style="flex:1; color:var(--text);">${escapeHtml(t || '')}</span><button class="btn sm" onclick="pickTitle('${id}', ${JSON.stringify(t).replace(/'/g, '&#39;').replace(/"/g, '&quot;')})">选这个</button></div>`).join('') || '—'}
+        </div>
+      </div>
+      <div class="field">
+        <label>热点背景信息（供审稿参考）</label>
+        <div style="font-size:13px; color: var(--text-muted); padding:10px 12px; background: #FFF8E1; border-left:3px solid #FFB300; border-radius:6px; white-space:pre-wrap; line-height:1.6;">
+${escapeHtml(m.background_info || '（无背景信息）')}
         </div>
       </div>
       <div class="field">
@@ -780,6 +786,15 @@ function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '
 function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 function closeModal() { $('#draftModal').classList.remove('show'); }
 $('#draftModal').addEventListener('click', (e) => { if (e.target.id === 'draftModal') closeModal(); });
+
+// 点候选标题 → 直接填到主标题输入框
+function pickTitle(id, title) {
+  const input = $('#f_title');
+  if (!input) return;
+  input.value = title || '';
+  input.focus();
+  toast('已选为主标题，记得点"保存编辑"', 'ok');
+}
 
 async function saveDraftEdit(id) {
   const selected_title = $('#f_title').value.trim();
